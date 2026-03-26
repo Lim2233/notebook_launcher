@@ -10,6 +10,8 @@ import re
 import subprocess
 import time
 import webbrowser
+import signal
+import atexit
 
 # ==================== 配置区域 ====================
 DEFAULT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -82,15 +84,15 @@ def install_jupyter(python_path):
         return False, error_msg
 
 def launch_jupyter(target_dir):
-    """在目标目录的虚拟环境中启动 Jupyter，返回 (成功标志, 地址或错误信息)"""
+    """在目标目录的虚拟环境中启动 Jupyter，返回 (成功标志, 地址或错误信息, 进程对象)"""
     if not os.path.isdir(target_dir):
-        return False, f"目录不存在: {target_dir}"
+        return False, f"目录不存在: {target_dir}", None
 
     # 查找已存在的虚拟环境
     python_path, venv_name = find_venv(target_dir)
     
     if not python_path:
-        return False, "未找到虚拟环境"
+        return False, "未找到虚拟环境", None
 
     # 启动 Jupyter Notebook（禁止自动打开浏览器）
     cmd = [python_path, '-m', 'notebook', '--no-browser']
@@ -105,7 +107,7 @@ def launch_jupyter(target_dir):
             bufsize=1
         )
     except Exception as e:
-        return False, f"启动 Jupyter Notebook 失败: {str(e)}"
+        return False, f"启动 Jupyter Notebook 失败: {str(e)}", None
 
     # 循环读取输出，寻找 URL
     url = None
@@ -124,11 +126,11 @@ def launch_jupyter(target_dir):
 
     if url:
         # 成功获取 URL，让 Jupyter 在后台继续运行
-        return True, url
+        return True, url, process
     else:
         # 超时或进程退出，终止子进程
         process.terminate()
-        return False, "未能获取 Jupyter Notebook 的访问地址（可能启动超时或未安装 notebook）"
+        return False, "未能获取 Jupyter Notebook 的访问地址（可能启动超时或未安装 notebook）", None
 
 def main():
     # 检查是否需要重启
@@ -194,13 +196,31 @@ def main():
             # 重启失败，继续执行
 
     # 启动 Jupyter Notebook
-    success, result = launch_jupyter(target_dir)
+    success, result, process = launch_jupyter(target_dir)
     if success:
         print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
         # 使用默认浏览器打开 URL
         webbrowser.open(result)
-        print("完成！请勿关闭此窗口，如需停止 Jupyter 请手动结束进程。")
-        input("按 Enter 键退出脚本，Jupyter 将继续在后台运行...")
+        
+        # 注册清理函数，确保脚本退出时终止 Jupyter 进程
+        def cleanup():
+            if process.poll() is None:
+                process.terminate()
+                process.wait()
+        
+        atexit.register(cleanup)
+        
+        # 处理信号，确保窗口关闭时也能清理
+        def signal_handler(signum, frame):
+            cleanup()
+            sys.exit(0)
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+        
+        print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
+        print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
+        input("按 Enter 键退出脚本...")
     else:
         print(f"错误: {result}")
         input("按 Enter 键退出...")
