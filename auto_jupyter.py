@@ -73,7 +73,7 @@ def install_jupyter(python_path):
     # 使用镜像源安装
     cmd = [python_path, '-m', 'pip', 'install', '-i', PIP_MIRROR, 'notebook']
     try:
-        subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(cmd, check=True)
         print("Jupyter Notebook 安装成功")
         return True
     except subprocess.CalledProcessError as e:
