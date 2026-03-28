@@ -7,6 +7,7 @@
 - **自动检测虚拟环境**：支持检测常见的虚拟环境目录（venv、env、.venv）
 - **自动创建虚拟环境**：当没有找到虚拟环境时，自动创建名为 "venv" 的虚拟环境
 - **自动安装 Jupyter**：如果虚拟环境中未安装 Jupyter Notebook，自动从镜像源安装
+- **自动安装中文插件**：安装 Jupyter 时自动安装中文插件，支持代码高亮、自动补全等功能
 - **一键启动**：双击脚本即可完成所有准备工作并启动 Jupyter Notebook
 - **自动打开浏览器**：启动后自动在默认浏览器中打开 Jupyter Notebook
 
@@ -24,9 +25,10 @@
 1. **环境检测**：脚本会检查当前目录下是否存在常见的虚拟环境目录
 2. **环境创建**：如果没有找到虚拟环境，使用系统 Python 解释器创建名为 "venv" 的虚拟环境
 3. **依赖安装**：检查虚拟环境中是否安装了 Jupyter Notebook，未安装则从清华大学镜像源安装
-4. **自动重启**：创建环境或安装依赖后，脚本会自动重启以确保环境正确加载
-5. **启动服务**：重启后启动 Jupyter Notebook 并提取访问 URL
-6. **打开浏览器**：使用默认浏览器打开 Jupyter Notebook
+4. **中文插件安装**：自动安装 Jupyter 中文插件（jupyter_contrib_nbextensions），提供代码高亮、自动补全等增强功能
+5. **自动重启**：创建环境或安装依赖后，脚本会自动重启以确保环境正确加载
+6. **启动服务**：重启后启动 Jupyter Notebook 并提取访问 URL
+7. **打开浏览器**：使用默认浏览器打开 Jupyter Notebook
 
 ## 配置选项
 
@@ -35,6 +37,23 @@
 - `DEFAULT_DIR`：默认工作目录（脚本所在目录）
 - `JUPYTER_TIMEOUT`：等待 Jupyter 启动的最大秒数
 - `PIP_MIRROR`：pip 镜像源地址（默认使用清华大学镜像源）
+
+## 中文插件说明
+
+脚本会自动安装以下 Jupyter 扩展插件：
+
+- **jupyter_contrib_nbextensions**：提供丰富的扩展功能集合
+- **jupyter_nbextensions_configurator**：提供图形化配置界面
+
+安装完成后，可以在 Jupyter Notebook 的 "Nbextensions" 标签页中启用各种插件，常用的插件包括：
+
+- **Code prettify**：代码格式化
+- **Hinterland**：代码自动补全
+- **Highlight selected word**：高亮选中的词
+- **Variable Inspector**：变量检查器
+- **ExecuteTime**：显示代码执行时间
+
+如果中文插件安装失败，不会影响 Jupyter Notebook 的正常使用。
 
 ## 注意事项
 
