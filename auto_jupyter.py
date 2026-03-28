@@ -28,6 +28,131 @@ def find_jupyter_url(line):
         return match.group(1)
     return None
 
+def set_jupyter_language(python_path):
+    """设置 Jupyter 的语言为中文"""
+    print("正在设置 Jupyter 语言为中文...")
+    try:
+        # 创建或修改 jupyter 配置文件
+        import json
+        import os
+        
+        # 获取用户主目录
+        home_dir = os.path.expanduser('~')
+        jupyter_config_dir = os.path.join(home_dir, '.jupyter')
+        os.makedirs(jupyter_config_dir, exist_ok=True)
+        
+        # 配置文件路径
+        config_file = os.path.join(jupyter_config_dir, 'jupyter_notebook_config.json')
+        
+        # 读取现有配置
+        if os.path.exists(config_file):
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+        else:
+            config = {}
+        
+        # 设置语言为中文
+        config['NotebookApp'] = config.get('NotebookApp', {})
+        config['NotebookApp']['locale'] = 'zh_CN'
+        
+        # 保存配置
+        with open(config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+        
+        print("Jupyter 语言设置为中文成功")
+        return True
+    except Exception as e:
+        print(f"设置 Jupyter 语言失败: {str(e)}")
+        return False
+
+def is_first_run(target_dir):
+    """检查是否是首次运行"""
+    # 创建一个标记文件来记录是否首次运行
+    marker_file = os.path.join(target_dir, '.notebook_launcher_first_run')
+    return not os.path.exists(marker_file)
+
+def mark_first_run_completed(target_dir):
+    """标记首次运行已完成"""
+    marker_file = os.path.join(target_dir, '.notebook_launcher_first_run')
+    with open(marker_file, 'w') as f:
+        f.write('')
+
+def create_start_folder_and_sample(target_dir):
+    """创建 Start 文件夹和 hello.ipynb 文件"""
+    print("正在创建 Start 文件夹和示例文件...")
+    try:
+        # 创建 Start 文件夹
+        start_folder = os.path.join(target_dir, 'Start')
+        os.makedirs(start_folder, exist_ok=True)
+        
+        # 创建 hello.ipynb 文件
+        hello_ipynb = os.path.join(start_folder, 'hello.ipynb')
+        
+        # 生成 notebook 内容
+        notebook_content = {
+            "cells": [
+                {
+                    "cell_type": "markdown",
+                    "metadata": {},
+                    "source": [
+                        "# Hello World 示例\n",
+                        "\n",
+                        "这是一个 Jupyter Notebook 示例文件，包含 Markdown 和 Python 代码。\n"
+                    ]
+                },
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [],
+                    "source": [
+                        "# 输出 Hello World\n",
+                        "print('Hello, World!')"
+                    ]
+                },
+                {
+                    "cell_type": "markdown",
+                    "metadata": {},
+                    "source": [
+                        "## 变量示例\n",
+                        "\n",
+                        "下面是一个简单的变量示例："
+                    ]
+                },
+                {
+                    "cell_type": "code",
+                    "execution_count": None,
+                    "metadata": {},
+                    "outputs": [],
+                    "source": [
+                        "# 定义变量\n",
+                        "name = 'Jupyter'\n",
+                        "print(f'Hello, {name}!')"
+                    ]
+                }
+            ],
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python 3",
+                    "language": "python",
+                    "name": "python3"
+                }
+            },
+            "nbformat": 4,
+            "nbformat_minor": 2
+        }
+        
+        # 写入文件
+        import json
+        with open(hello_ipynb, 'w', encoding='utf-8') as f:
+            json.dump(notebook_content, f, indent=2, ensure_ascii=False)
+        
+        print(f"Start 文件夹和 hello.ipynb 文件创建成功，路径：{hello_ipynb}")
+        return True
+    except Exception as e:
+        print(f"创建 Start 文件夹和示例文件失败: {str(e)}")
+        return False
+
 def find_venv(target_dir):
     """查找目标目录中已存在的虚拟环境"""
     # 常见虚拟环境目录名称
@@ -89,6 +214,14 @@ def install_jupyter(python_path):
         except subprocess.CalledProcessError:
             print("中文插件安装失败（不影响Jupyter使用）")
         
+        # 安装中文语言包
+        print("正在安装 Jupyter 中文语言包...")
+        try:
+            subprocess.run([python_path, '-m', 'pip', 'install', 'jupyterlab-language-pack-zh-CN'], check=True)
+            print("中文语言包安装成功")
+        except subprocess.CalledProcessError:
+            print("中文语言包安装失败（不影响Jupyter使用）")
+        
         return True
     except subprocess.CalledProcessError as e:
         error_msg = f"安装 Jupyter Notebook 失败: {str(e)}"
@@ -105,6 +238,9 @@ def launch_jupyter(target_dir):
     
     if not python_path:
         return False, "未找到虚拟环境", None
+
+    # 设置 Jupyter 语言为中文
+    set_jupyter_language(python_path)
 
     # 启动 Jupyter Notebook（禁止自动打开浏览器）
     cmd = [python_path, '-m', 'notebook', '--no-browser']
@@ -149,94 +285,160 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--restart":
         # 重启模式，跳过环境检查
         target_dir = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_DIR
+        
+        # 启动 Jupyter Notebook
+        success, result, process = launch_jupyter(target_dir)
+        if success:
+            print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
+            # 使用默认浏览器打开 URL
+            webbrowser.open(result)
+            
+            # 注册清理函数，确保脚本退出时终止 Jupyter 进程
+            def cleanup():
+                if process.poll() is None:
+                    process.terminate()
+                    process.wait()
+            
+            atexit.register(cleanup)
+            
+            # 处理信号，确保窗口关闭时也能清理
+            def signal_handler(signum, frame):
+                cleanup()
+                sys.exit(0)
+            
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
+            
+            print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
+            print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
+            input("按 Enter 键退出脚本...")
+        else:
+            print(f"错误: {result}")
+            input("按 Enter 键退出...")
+            sys.exit(1)
     else:
         # 正常模式
         target_dir = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DIR
 
-    print(f"目标目录: {target_dir}")
+        print(f"目标目录: {target_dir}")
 
-    # 标记是否创建了新环境或安装了Jupyter
-    created_env = False
-    installed_jupyter = False
+        # 检查是否首次运行，如果是则创建 Start 文件夹和示例文件
+        if is_first_run(target_dir):
+            create_start_folder_and_sample(target_dir)
+            mark_first_run_completed(target_dir)
 
-    # 查找已存在的虚拟环境
-    python_path, venv_name = find_venv(target_dir)
-    
-    # 如果没有找到虚拟环境，创建新的
-    if not python_path:
-        print("未找到虚拟环境，正在创建...")
-        python_path, error = create_venv(target_dir)
+        # 标记是否创建了新环境或安装了Jupyter
+        created_env = False
+        installed_jupyter = False
+
+        # 查找已存在的虚拟环境
+        python_path, venv_name = find_venv(target_dir)
+        
+        # 如果没有找到虚拟环境，创建新的
         if not python_path:
-            print(f"错误: {error}")
-            input("按 Enter 键退出...")
-            sys.exit(1)
-        venv_name = 'venv'
-        created_env = True
-    
-    # 检查 notebook 是否安装
-    check_cmd = [python_path, '-c', 'import notebook']
-    try:
-        subprocess.run(check_cmd, capture_output=True, check=True)
-    except subprocess.CalledProcessError:
-        # 未安装，尝试安装
-        print("Jupyter Notebook 未安装，正在安装...")
-        result = install_jupyter(python_path)
-        if isinstance(result, tuple) and not result[0]:
-            print(f"错误: {result[1]}")
-            input("按 Enter 键退出...")
-            sys.exit(1)
-        elif not result:
-            print("错误: 安装 Jupyter Notebook 失败")
-            input("按 Enter 键退出...")
-            sys.exit(1)
-        installed_jupyter = True
-
-    # 如果创建了新环境或安装了Jupyter，重启脚本
-    if created_env or installed_jupyter:
-        print("\n环境已准备就绪，正在重启脚本...")
-        # 构建重启命令
-        restart_cmd = [sys.executable, __file__, "--restart"]
-        if len(sys.argv) > 1 and sys.argv[1] != "--restart":
-            restart_cmd.append(sys.argv[1])
-        # 执行重启
+            print("未找到虚拟环境，正在创建...")
+            python_path, error = create_venv(target_dir)
+            if not python_path:
+                print(f"错误: {error}")
+                input("按 Enter 键退出...")
+                sys.exit(1)
+            venv_name = 'venv'
+            created_env = True
+        
+        # 检查 notebook 是否安装
+        check_cmd = [python_path, '-c', 'import notebook']
         try:
-            subprocess.Popen(restart_cmd)
-            print("脚本已重启，正在启动 Jupyter Notebook...")
-            sys.exit(0)
-        except Exception as e:
-            print(f"重启脚本失败: {str(e)}")
-            # 重启失败，继续执行
+            subprocess.run(check_cmd, capture_output=True, check=True)
+        except subprocess.CalledProcessError:
+            # 未安装，尝试安装
+            print("Jupyter Notebook 未安装，正在安装...")
+            result = install_jupyter(python_path)
+            if isinstance(result, tuple) and not result[0]:
+                print(f"错误: {result[1]}")
+                input("按 Enter 键退出...")
+                sys.exit(1)
+            elif not result:
+                print("错误: 安装 Jupyter Notebook 失败")
+                input("按 Enter 键退出...")
+                sys.exit(1)
+            installed_jupyter = True
 
-    # 启动 Jupyter Notebook
-    success, result, process = launch_jupyter(target_dir)
-    if success:
-        print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
-        # 使用默认浏览器打开 URL
-        webbrowser.open(result)
-        
-        # 注册清理函数，确保脚本退出时终止 Jupyter 进程
-        def cleanup():
-            if process.poll() is None:
-                process.terminate()
-                process.wait()
-        
-        atexit.register(cleanup)
-        
-        # 处理信号，确保窗口关闭时也能清理
-        def signal_handler(signum, frame):
-            cleanup()
-            sys.exit(0)
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-        
-        print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
-        print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
-        input("按 Enter 键退出脚本...")
-    else:
-        print(f"错误: {result}")
-        input("按 Enter 键退出...")
-        sys.exit(1)
+        # 如果创建了新环境或安装了Jupyter，重启脚本
+        if created_env or installed_jupyter:
+            print("\n环境已准备就绪，正在重启脚本...")
+            # 构建重启命令
+            restart_cmd = [sys.executable, __file__, "--restart"]
+            if len(sys.argv) > 1 and sys.argv[1] != "--restart":
+                restart_cmd.append(sys.argv[1])
+            # 执行重启
+            try:
+                subprocess.Popen(restart_cmd)
+                print("脚本已重启，正在启动 Jupyter Notebook...")
+                sys.exit(0)
+            except Exception as e:
+                print(f"重启脚本失败: {str(e)}")
+                # 重启失败，继续执行
+                # 启动 Jupyter Notebook
+                success, result, process = launch_jupyter(target_dir)
+                if success:
+                    print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
+                    # 使用默认浏览器打开 URL
+                    webbrowser.open(result)
+                    
+                    # 注册清理函数，确保脚本退出时终止 Jupyter 进程
+                    def cleanup():
+                        if process.poll() is None:
+                            process.terminate()
+                            process.wait()
+                    
+                    atexit.register(cleanup)
+                    
+                    # 处理信号，确保窗口关闭时也能清理
+                    def signal_handler(signum, frame):
+                        cleanup()
+                        sys.exit(0)
+                    
+                    signal.signal(signal.SIGINT, signal_handler)
+                    signal.signal(signal.SIGTERM, signal_handler)
+                    
+                    print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
+                    print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
+                    input("按 Enter 键退出脚本...")
+                else:
+                    print(f"错误: {result}")
+                    input("按 Enter 键退出...")
+                    sys.exit(1)
+        else:
+            # 启动 Jupyter Notebook
+            success, result, process = launch_jupyter(target_dir)
+            if success:
+                print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
+                # 使用默认浏览器打开 URL
+                webbrowser.open(result)
+                
+                # 注册清理函数，确保脚本退出时终止 Jupyter 进程
+                def cleanup():
+                    if process.poll() is None:
+                        process.terminate()
+                        process.wait()
+                
+                atexit.register(cleanup)
+                
+                # 处理信号，确保窗口关闭时也能清理
+                def signal_handler(signum, frame):
+                    cleanup()
+                    sys.exit(0)
+                
+                signal.signal(signal.SIGINT, signal_handler)
+                signal.signal(signal.SIGTERM, signal_handler)
+                
+                print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
+                print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
+                input("按 Enter 键退出脚本...")
+            else:
+                print(f"错误: {result}")
+                input("按 Enter 键退出...")
+                sys.exit(1)
 
 if __name__ == '__main__':
     main()
