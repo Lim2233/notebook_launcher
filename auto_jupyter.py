@@ -53,7 +53,8 @@ def set_jupyter_language(python_path):
         
         # 设置语言为中文
         config['NotebookApp'] = config.get('NotebookApp', {})
-        config['NotebookApp']['locale'] = 'zh_CN'
+        # 正确的语言配置项是 'language' 而不是 'locale'
+        config['NotebookApp']['language'] = 'zh_CN'
         
         # 保存配置
         with open(config_file, 'w', encoding='utf-8') as f:
@@ -203,16 +204,6 @@ def install_jupyter(python_path):
         subprocess.run(cmd, check=True)
         print("Jupyter Notebook 安装成功")
         
-        # 安装中文插件
-        print("正在安装 Jupyter 中文插件...")
-        try:
-            subprocess.run([python_path, '-m', 'pip', 'install', '-i', PIP_MIRROR, 'jupyter_contrib_nbextensions', 'jupyter_nbextensions_configurator'], check=True)
-            # 启用 nbextensions
-            subprocess.run([python_path, '-m', 'jupyter', 'contrib', 'nbextension', 'install', '--user'], check=True, capture_output=True)
-            subprocess.run([python_path, '-m', 'jupyter', 'nbextensions_configurator', 'enable', '--user'], check=True, capture_output=True)
-            print("中文插件安装成功")
-        except subprocess.CalledProcessError:
-            print("中文插件安装失败（不影响Jupyter使用）")
         
         # 安装中文语言包
         print("正在安装 Jupyter 中文语言包...")
