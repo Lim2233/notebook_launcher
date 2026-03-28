@@ -271,6 +271,41 @@ def launch_jupyter(target_dir):
         process.terminate()
         return False, "未能获取 Jupyter Notebook 的访问地址（可能启动超时或未安装 notebook）", None
 
+def check_python_version():
+    """检查 Python 版本是否为 3.12"""
+    import platform
+    version = platform.python_version_tuple()
+    major, minor = int(version[0]), int(version[1])
+    return major == 3 and minor == 12
+
+def create_download_python_script():
+    """创建下载 Python 3.12 的批处理脚本"""
+    script_content = '''@echo off
+
+REM 下载 Python 3.12.4 安装包
+set PYTHON_URL=https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe
+set PYTHON_EXE=python-3.12.4-amd64.exe
+
+echo 正在下载 Python 3.12.4...
+if not exist "%PYTHON_EXE%" (
+    echo 请手动下载 Python 3.12.4 安装包：
+    echo %PYTHON_URL%
+    echo 下载完成后请放在当前目录并重新运行此脚本
+    pause
+    exit /b 1
+)
+
+echo 正在安装 Python 3.12.4...
+start /wait "%PYTHON_EXE%" /passive InstallAllUsers=1 PrependPath=1
+
+echo Python 3.12.4 安装完成
+pause
+'''
+    script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'download_python_312.bat')
+    with open(script_path, 'w') as f:
+        f.write(script_content)
+    return script_path
+
 def main():
     # 检查是否需要重启
     if len(sys.argv) > 1 and sys.argv[1] == "--restart":
@@ -312,6 +347,21 @@ def main():
         target_dir = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DIR
 
         print(f"目标目录: {target_dir}")
+
+        # 检查 Python 版本
+        if not check_python_version():
+            print("当前 Python 版本不是 3.12，需要下载并安装 Python 3.12...")
+            script_path = create_download_python_script()
+            print(f"正在运行下载脚本: {script_path}")
+            try:
+                subprocess.run([script_path], check=True)
+                print("Python 3.12 安装完成，请重新运行此脚本")
+                input("按 Enter 键退出...")
+                sys.exit(0)
+            except subprocess.CalledProcessError:
+                print("下载 Python 3.12 失败，请手动下载并安装")
+                input("按 Enter 键退出...")
+                sys.exit(1)
 
         # 检查是否首次运行，如果是则创建 Start 文件夹和示例文件
         if is_first_run(target_dir):
