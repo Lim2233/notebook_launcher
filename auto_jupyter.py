@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-自动激活或创建虚拟环境并启动 Jupyter Notebook，然后使用默认浏览器打开。
-使用方法：直接运行此脚本，或通过命令行参数指定项目目录。
-"""
-
 import os
 import sys
 import re
@@ -20,8 +15,7 @@ PIP_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"  # 镜像源
 # =================================================
 
 def find_jupyter_url(line):
-    """从 Jupyter 输出行中提取访问地址（支持 localhost 和 127.0.0.1，兼容 /tree?token= 等格式）"""
-    # 匹配 http://localhost:端口/任意路径?token=...
+    
     pattern = r'(http://(?:localhost|127\.0\.0\.1):\d+/[^\s]*\?token=[a-f0-9]+)'
     match = re.search(pattern, line)
     if match:
