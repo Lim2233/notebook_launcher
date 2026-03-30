@@ -78,15 +78,6 @@ def install_jupyter(python_path):
         subprocess.run(cmd, check=True)
         print("Jupyter Notebook 安装成功")
         
-        
-        # 安装中文语言包
-        print("正在安装 Jupyter 中文语言包...")
-        try:
-            subprocess.run([python_path, '-m', 'pip', 'install', 'jupyterlab-language-pack-zh-CN'], check=True)
-            print("中文语言包安装成功")
-        except subprocess.CalledProcessError:
-            print("中文语言包安装失败（不影响Jupyter使用）")
-        
         return True
     except subprocess.CalledProcessError as e:
         error_msg = f"安装 Jupyter Notebook 失败: {str(e)}"
@@ -191,14 +182,6 @@ def main():
         target_dir = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DIR
 
         print(f"目标目录: {target_dir}")
-
-        # 检查 Python 版本
-        if not check_python_version():
-            print("当前 Python 版本不是 3.12，可能会导致兼容性问题...")
-            print("建议使用 Python 3.12 以获得最佳兼容性")
-            print("您可以从以下链接下载 Python 3.12.4:")
-            print("https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe")
-            print("\n正在继续执行...")
 
         
 
