@@ -78,20 +78,26 @@ def install_jupyter(python_path):
         subprocess.run(cmd, check=True)
         print("Jupyter Notebook 安装成功")
         
-        # 安装中文插件
-        print("正在安装 Jupyter 中文插件...")
-        try:
-            subprocess.run([python_path, '-m', 'pip', 'install', '-i', PIP_MIRROR, 'jupyter_contrib_nbextensions', 'jupyter_nbextensions_configurator'], check=True)
-            # 启用 nbextensions
-            subprocess.run([python_path, '-m', 'jupyter', 'contrib', 'nbextension', 'install', '--user'], check=True, capture_output=True)
-            subprocess.run([python_path, '-m', 'jupyter', 'nbextensions_configurator', 'enable', '--user'], check=True, capture_output=True)
-            print("中文插件安装成功")
-        except subprocess.CalledProcessError:
-            print("中文插件安装失败（不影响Jupyter使用）")
+        
         
         return True
     except subprocess.CalledProcessError as e:
         error_msg = f"安装 Jupyter Notebook 失败: {str(e)}"
+        print(error_msg)
+        return False, error_msg
+
+def install_chinese_language_pack(python_path):
+    """安装 JupyterLab 中文语言包"""
+    print("正在安装 JupyterLab 中文语言包...")
+    
+    # 使用镜像源安装中文语言包
+    cmd = [python_path, '-m', 'pip', 'install', '-i', PIP_MIRROR, 'jupyterlab-language-pack-zh-CN']
+    try:
+        subprocess.run(cmd, check=True)
+        print("JupyterLab 中文语言包安装成功")
+        return True
+    except subprocess.CalledProcessError as e:
+        error_msg = f"安装 JupyterLab 中文语言包失败: {str(e)}"
         print(error_msg)
         return False, error_msg
 
@@ -158,6 +164,7 @@ def main():
     # 标记是否创建了新环境或安装了Jupyter
     created_env = False
     installed_jupyter = False
+    installed_chinese = False
 
     # 查找已存在的虚拟环境
     python_path, venv_name = find_venv(target_dir)
@@ -191,8 +198,25 @@ def main():
             sys.exit(1)
         installed_jupyter = True
 
-    # 如果创建了新环境或安装了Jupyter，重启脚本
-    if created_env or installed_jupyter:
+    # 检查中文语言包是否安装
+    check_chinese_cmd = [python_path, '-c', 'import jupyterlab_language_pack_zh_CN']
+    try:
+        subprocess.run(check_chinese_cmd, capture_output=True, check=True)
+    except subprocess.CalledProcessError:
+        # 未安装，尝试安装
+        print("JupyterLab 中文语言包未安装，正在安装...")
+        result = install_chinese_language_pack(python_path)
+        if isinstance(result, tuple) and not result[0]:
+            print(f"警告: {result[1]}")
+            print("将继续启动 Jupyter Notebook...")
+        elif not result:
+            print("警告: 安装 JupyterLab 中文语言包失败")
+            print("将继续启动 Jupyter Notebook...")
+        else:
+            installed_chinese = True
+
+    # 如果创建了新环境或安装了Jupyter或中文包，重启脚本
+    if created_env or installed_jupyter or installed_chinese:
         print("\n环境已准备就绪，正在重启脚本...")
         # 构建重启命令
         restart_cmd = [sys.executable, __file__, "--restart"]
