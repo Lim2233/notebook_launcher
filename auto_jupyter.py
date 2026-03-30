@@ -28,132 +28,6 @@ def find_jupyter_url(line):
         return match.group(1)
     return None
 
-def set_jupyter_language(python_path):
-    """设置 Jupyter 的语言为中文"""
-    print("正在设置 Jupyter 语言为中文...")
-    try:
-        # 创建或修改 jupyter 配置文件
-        import json
-        import os
-        
-        # 获取用户主目录
-        home_dir = os.path.expanduser('~')
-        jupyter_config_dir = os.path.join(home_dir, '.jupyter')
-        os.makedirs(jupyter_config_dir, exist_ok=True)
-        
-        # 配置文件路径
-        config_file = os.path.join(jupyter_config_dir, 'jupyter_notebook_config.json')
-        
-        # 读取现有配置
-        if os.path.exists(config_file):
-            with open(config_file, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-        else:
-            config = {}
-        
-        # 设置语言为中文
-        config['NotebookApp'] = config.get('NotebookApp', {})
-        # 正确的语言配置项是 'language' 而不是 'locale'
-        config['NotebookApp']['language'] = 'zh_CN'
-        
-        # 保存配置
-        with open(config_file, 'w', encoding='utf-8') as f:
-            json.dump(config, f, indent=2, ensure_ascii=False)
-        
-        print("Jupyter 语言设置为中文成功")
-        return True
-    except Exception as e:
-        print(f"设置 Jupyter 语言失败: {str(e)}")
-        return False
-
-def is_first_run(target_dir):
-    """检查是否是首次运行"""
-    # 创建一个标记文件来记录是否首次运行
-    marker_file = os.path.join(target_dir, '.notebook_launcher_first_run')
-    return not os.path.exists(marker_file)
-
-def mark_first_run_completed(target_dir):
-    """标记首次运行已完成"""
-    marker_file = os.path.join(target_dir, '.notebook_launcher_first_run')
-    with open(marker_file, 'w') as f:
-        f.write('')
-
-def create_start_folder_and_sample(target_dir):
-    """创建 Start 文件夹和 hello.ipynb 文件"""
-    print("正在创建 Start 文件夹和示例文件...")
-    try:
-        # 创建 Start 文件夹
-        start_folder = os.path.join(target_dir, 'Start')
-        os.makedirs(start_folder, exist_ok=True)
-        
-        # 创建 hello.ipynb 文件
-        hello_ipynb = os.path.join(start_folder, 'hello.ipynb')
-        
-        # 生成 notebook 内容
-        notebook_content = {
-            "cells": [
-                {
-                    "cell_type": "markdown",
-                    "metadata": {},
-                    "source": [
-                        "# Hello World 示例\n",
-                        "\n",
-                        "这是一个 Jupyter Notebook 示例文件，包含 Markdown 和 Python 代码。\n"
-                    ]
-                },
-                {
-                    "cell_type": "code",
-                    "execution_count": None,
-                    "metadata": {},
-                    "outputs": [],
-                    "source": [
-                        "# 输出 Hello World\n",
-                        "print('Hello, World!')"
-                    ]
-                },
-                {
-                    "cell_type": "markdown",
-                    "metadata": {},
-                    "source": [
-                        "## 变量示例\n",
-                        "\n",
-                        "下面是一个简单的变量示例："
-                    ]
-                },
-                {
-                    "cell_type": "code",
-                    "execution_count": None,
-                    "metadata": {},
-                    "outputs": [],
-                    "source": [
-                        "# 定义变量\n",
-                        "name = 'Jupyter'\n",
-                        "print(f'Hello, {name}!')"
-                    ]
-                }
-            ],
-            "metadata": {
-                "kernelspec": {
-                    "display_name": "Python 3",
-                    "language": "python",
-                    "name": "python3"
-                }
-            },
-            "nbformat": 4,
-            "nbformat_minor": 2
-        }
-        
-        # 写入文件
-        import json
-        with open(hello_ipynb, 'w', encoding='utf-8') as f:
-            json.dump(notebook_content, f, indent=2, ensure_ascii=False)
-        
-        print(f"Start 文件夹和 hello.ipynb 文件创建成功，路径：{hello_ipynb}")
-        return True
-    except Exception as e:
-        print(f"创建 Start 文件夹和示例文件失败: {str(e)}")
-        return False
-
 def find_venv(target_dir):
     """查找目标目录中已存在的虚拟环境"""
     # 常见虚拟环境目录名称
@@ -230,8 +104,6 @@ def launch_jupyter(target_dir):
     if not python_path:
         return False, "未找到虚拟环境", None
 
-    # 设置 Jupyter 语言为中文
-    set_jupyter_language(python_path)
 
     # 启动 Jupyter Notebook（禁止自动打开浏览器）
     cmd = [python_path, '-m', 'notebook', '--no-browser']
@@ -328,10 +200,7 @@ def main():
             print("https://www.python.org/ftp/python/3.12.4/python-3.12.4-amd64.exe")
             print("\n正在继续执行...")
 
-        # 检查是否首次运行，如果是则创建 Start 文件夹和示例文件
-        if is_first_run(target_dir):
-            create_start_folder_and_sample(target_dir)
-            mark_first_run_completed(target_dir)
+        
 
         # 标记是否创建了新环境或安装了Jupyter
         created_env = False
