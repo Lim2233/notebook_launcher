@@ -1,296 +1,71 @@
 #!/usr/bin/env python3
-import os
-import sys
-import re
-import subprocess
-import time
-import webbrowser
-import signal
-import atexit
+import os, sys, re, subprocess, time, webbrowser, signal, atexit
 
 # ==================== 配置区域 ====================
 DEFAULT_DIR = os.path.dirname(os.path.abspath(__file__))
-JUPYTER_TIMEOUT = 15          # 等待 Jupyter 启动的最大秒数
-PIP_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"  # 镜像源
+JUPYTER_TIMEOUT = 15
+PIP_MIRROR = "https://pypi.tuna.tsinghua.edu.cn/simple"
 # =================================================
 
-def find_jupyter_url(line):
+def get_venv_python(target_dir):
+    """获取虚拟环境 Python 路径，不存在则创建"""
+    for name in ['venv', 'env', '.venv']:
+        path = os.path.join(target_dir, name, 'Scripts' if os.name == 'nt' else 'bin', 'python' + ('.exe' if os.name == 'nt' else ''))
+        if os.path.exists(path): return path
     
-    pattern = r'(http://(?:localhost|127\.0\.0\.1):\d+/[^\s]*\?token=[a-f0-9]+)'
-    match = re.search(pattern, line)
-    if match:
-        return match.group(1)
-    return None
+    print("正在创建虚拟环境...")
+    venv_path = os.path.join(target_dir, 'venv')
+    subprocess.run([sys.executable, '-m', 'venv', venv_path], check=True)
+    return os.path.join(venv_path, 'Scripts' if os.name == 'nt' else 'bin', 'python' + ('.exe' if os.name == 'nt' else ''))
 
-def find_venv(target_dir):
-    """查找目标目录中已存在的虚拟环境"""
-    # 常见虚拟环境目录名称
-    venv_names = ['venv', 'env', '.venv']
-    
-    for venv_name in venv_names:
-        if os.name == 'nt':
-            python_path = os.path.join(target_dir, venv_name, 'Scripts', 'python.exe')
-        else:
-            python_path = os.path.join(target_dir, venv_name, 'bin', 'python')
-        
-        if os.path.isfile(python_path):
-            print(f"找到虚拟环境: {venv_name}")
-            return python_path, venv_name
-    
-    return None, None
-
-def create_venv(target_dir):
-    """创建新的虚拟环境"""
-    venv_name = 'venv'
-    venv_path = os.path.join(target_dir, venv_name)
-    
-    print(f"正在创建虚拟环境: {venv_name}")
-    
-    # 使用系统 Python 创建虚拟环境
-    cmd = [sys.executable, '-m', 'venv', venv_path]
-    try:
-        subprocess.run(cmd, check=True, capture_output=True)
-        print("虚拟环境创建成功")
-        
-        # 获取新创建的虚拟环境 Python 路径
-        if os.name == 'nt':
-            python_path = os.path.join(venv_path, 'Scripts', 'python.exe')
-        else:
-            python_path = os.path.join(venv_path, 'bin', 'python')
-        
-        return python_path, venv_name
-    except subprocess.CalledProcessError as e:
-        return None, f"创建虚拟环境失败: {str(e)}"
-
-def install_jupyter(python_path):
-    """安装 Jupyter Notebook"""
-    print("正在安装 Jupyter Notebook...")
-    
-    # 使用镜像源安装
-    cmd = [python_path, '-m', 'pip', 'install', '-i', PIP_MIRROR, 'notebook']
-    try:
-        subprocess.run(cmd, check=True)
-        print("Jupyter Notebook 安装成功")
-        
-        return True
-    except subprocess.CalledProcessError as e:
-        error_msg = f"安装 Jupyter Notebook 失败: {str(e)}"
-        print(error_msg)
-        return False, error_msg
-
-def launch_jupyter(target_dir):
-    """在目标目录的虚拟环境中启动 Jupyter，返回 (成功标志, 地址或错误信息, 进程对象)"""
-    if not os.path.isdir(target_dir):
-        return False, f"目录不存在: {target_dir}", None
-
-    # 查找已存在的虚拟环境
-    python_path, venv_name = find_venv(target_dir)
-    
-    if not python_path:
-        return False, "未找到虚拟环境", None
-
-
-    # 启动 Jupyter Notebook（禁止自动打开浏览器）
+def run_and_manage_jupyter(python_path, target_dir):
+    """启动 Jupyter 并处理生命周期"""
     cmd = [python_path, '-m', 'notebook', '--no-browser']
-    print(f"正在启动 Jupyter Notebook (目录: {target_dir}, 虚拟环境: {venv_name})...")
-    try:
-        process = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            cwd=target_dir,
-            bufsize=1
-        )
-    except Exception as e:
-        return False, f"启动 Jupyter Notebook 失败: {str(e)}", None
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=target_dir, bufsize=1)
 
-    # 循环读取输出，寻找 URL
-    url = None
+    def cleanup():
+        if process.poll() is None:
+            process.terminate()
+            process.wait()
+    
+    atexit.register(cleanup)
+    signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
+
     timeout = time.time() + JUPYTER_TIMEOUT
     while time.time() < timeout:
         line = process.stdout.readline()
-        if not line:
-            if process.poll() is not None:
-                break
-            continue
-        print(line, end='')   # 打印到控制台，便于调试
-        url = find_jupyter_url(line)
-        if url:
-            print(f"\n成功获取访问地址: {url}")
-            break
-
-    if url:
-        # 成功获取 URL，让 Jupyter 在后台继续运行
-        return True, url, process
-    else:
-        # 超时或进程退出，终止子进程
-        process.terminate()
-        return False, "未能获取 Jupyter Notebook 的访问地址（可能启动超时或未安装 notebook）", None
-
-def check_python_version():
-    """检查 Python 版本是否为 3.12"""
-    import platform
-    version = platform.python_version_tuple()
-    major, minor = int(version[0]), int(version[1])
-    return major == 3 and minor == 12
+        if not line and process.poll() is not None: break
+        print(line, end='')
+        match = re.search(r'(http://(?:localhost|127\.0\.0\.1):\d+/[^\s]*\?token=[a-f0-9]+)', line)
+        if match:
+            url = match.group(1)
+            print(f"\n成功！正在打开浏览器: {url}")
+            webbrowser.open(url)
+            print("提示：按 Ctrl+C 或关闭此窗口可停止 Jupyter。")
+            input("按 Enter 键退出脚本...")
+            return
+    
+    process.terminate()
+    print("\n错误：启动超时或获取地址失败。")
 
 def main():
-    # 检查是否需要重启
-    if len(sys.argv) > 1 and sys.argv[1] == "--restart":
-        # 重启模式，跳过环境检查
-        target_dir = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_DIR
-        
-        # 启动 Jupyter Notebook
-        success, result, process = launch_jupyter(target_dir)
-        if success:
-            print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
-            # 使用默认浏览器打开 URL
-            webbrowser.open(result)
-            
-            # 注册清理函数，确保脚本退出时终止 Jupyter 进程
-            def cleanup():
-                if process.poll() is None:
-                    process.terminate()
-                    process.wait()
-            
-            atexit.register(cleanup)
-            
-            # 处理信号，确保窗口关闭时也能清理
-            def signal_handler(signum, frame):
-                cleanup()
-                sys.exit(0)
-            
-            signal.signal(signal.SIGINT, signal_handler)
-            signal.signal(signal.SIGTERM, signal_handler)
-            
-            print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
-            print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
-            input("按 Enter 键退出脚本...")
-        else:
-            print(f"错误: {result}")
-            input("按 Enter 键退出...")
-            sys.exit(1)
+    target_dir = os.path.abspath(sys.argv[2] if "--restart" in sys.argv else (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_DIR))
+    
+    # 1. 环境准备
+    python_path = get_venv_python(target_dir)
+    
+    # 2. 依赖检查
+    try:
+        subprocess.run([python_path, '-c', 'import notebook'], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print("正在安装 Jupyter Notebook...")
+        subprocess.run([python_path, '-m', 'pip', 'install', '-i', PIP_MIRROR, 'notebook'], check=True)
+    
+    # 3. 递归重启（可选，若想保持环境纯净）或直接运行
+    if "--restart" not in sys.argv:
+        os.execv(sys.executable, [sys.executable, __file__, "--restart", target_dir])
     else:
-        # 正常模式
-        target_dir = os.path.abspath(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_DIR
-
-        print(f"目标目录: {target_dir}")
-
-        
-
-        # 标记是否创建了新环境或安装了Jupyter
-        created_env = False
-        installed_jupyter = False
-
-        # 查找已存在的虚拟环境
-        python_path, venv_name = find_venv(target_dir)
-        
-        # 如果没有找到虚拟环境，创建新的
-        if not python_path:
-            print("未找到虚拟环境，正在创建...")
-            python_path, error = create_venv(target_dir)
-            if not python_path:
-                print(f"错误: {error}")
-                input("按 Enter 键退出...")
-                sys.exit(1)
-            venv_name = 'venv'
-            created_env = True
-        
-        # 检查 notebook 是否安装
-        check_cmd = [python_path, '-c', 'import notebook']
-        try:
-            subprocess.run(check_cmd, capture_output=True, check=True)
-        except subprocess.CalledProcessError:
-            # 未安装，尝试安装
-            print("Jupyter Notebook 未安装，正在安装...")
-            result = install_jupyter(python_path)
-            if isinstance(result, tuple) and not result[0]:
-                print(f"错误: {result[1]}")
-                input("按 Enter 键退出...")
-                sys.exit(1)
-            elif not result:
-                print("错误: 安装 Jupyter Notebook 失败")
-                input("按 Enter 键退出...")
-                sys.exit(1)
-            installed_jupyter = True
-
-        # 如果创建了新环境或安装了Jupyter，重启脚本
-        if created_env or installed_jupyter:
-            print("\n环境已准备就绪，正在重启脚本...")
-            # 构建重启命令
-            restart_cmd = [sys.executable, __file__, "--restart"]
-            if len(sys.argv) > 1 and sys.argv[1] != "--restart":
-                restart_cmd.append(sys.argv[1])
-            # 执行重启
-            try:
-                subprocess.Popen(restart_cmd)
-                print("脚本已重启，正在启动 Jupyter Notebook...")
-                sys.exit(0)
-            except Exception as e:
-                print(f"重启脚本失败: {str(e)}")
-                # 重启失败，继续执行
-                # 启动 Jupyter Notebook
-                success, result, process = launch_jupyter(target_dir)
-                if success:
-                    print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
-                    # 使用默认浏览器打开 URL
-                    webbrowser.open(result)
-                    
-                    # 注册清理函数，确保脚本退出时终止 Jupyter 进程
-                    def cleanup():
-                        if process.poll() is None:
-                            process.terminate()
-                            process.wait()
-                    
-                    atexit.register(cleanup)
-                    
-                    # 处理信号，确保窗口关闭时也能清理
-                    def signal_handler(signum, frame):
-                        cleanup()
-                        sys.exit(0)
-                    
-                    signal.signal(signal.SIGINT, signal_handler)
-                    signal.signal(signal.SIGTERM, signal_handler)
-                    
-                    print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
-                    print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
-                    input("按 Enter 键退出脚本...")
-                else:
-                    print(f"错误: {result}")
-                    input("按 Enter 键退出...")
-                    sys.exit(1)
-        else:
-            # 启动 Jupyter Notebook
-            success, result, process = launch_jupyter(target_dir)
-            if success:
-                print(f"Jupyter Notebook 已启动，正在用默认浏览器打开...")
-                # 使用默认浏览器打开 URL
-                webbrowser.open(result)
-                
-                # 注册清理函数，确保脚本退出时终止 Jupyter 进程
-                def cleanup():
-                    if process.poll() is None:
-                        process.terminate()
-                        process.wait()
-                
-                atexit.register(cleanup)
-                
-                # 处理信号，确保窗口关闭时也能清理
-                def signal_handler(signum, frame):
-                    cleanup()
-                    sys.exit(0)
-                
-                signal.signal(signal.SIGINT, signal_handler)
-                signal.signal(signal.SIGTERM, signal_handler)
-                
-                print("完成！可以关闭此窗口，Jupyter 将在后台运行。")
-                print("提示：关闭此窗口不会停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭。")
-                input("按 Enter 键退出脚本...")
-            else:
-                print(f"错误: {result}")
-                input("按 Enter 键退出...")
-                sys.exit(1)
+        run_and_manage_jupyter(python_path, target_dir)
 
 if __name__ == '__main__':
     main()
