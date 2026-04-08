@@ -1,75 +1,59 @@
-# notebook_launcher
+# 🚀 Auto Jupyter
+**极简、优雅、自动化的 Jupyter Notebook 环境管理和一键启动脚本**
 
-一个自动化的 Jupyter Notebook 启动工具，能够自动检测、创建虚拟环境并安装 Jupyter Notebook。
+这是一个专为“效率至上”设计的 Python 脚本。它能自动完成从 **虚拟环境创建**、**依赖镜像安装** 到 **浏览器自动唤起** 的全过程。无需手动配置繁琐的 `pip` 或环境变量，运行即用。
 
-## 功能特性
+---
 
-- **自动检测虚拟环境**：支持检测常见的虚拟环境目录（venv、env、.venv）
-- **自动创建虚拟环境**：当没有找到虚拟环境时，自动创建名为 "venv" 的虚拟环境
-- **自动安装 Jupyter**：如果虚拟环境中未安装 Jupyter Notebook，自动从镜像源安装
-- **一键启动**：双击脚本即可完成所有准备工作并启动 Jupyter Notebook
-- **自动打开浏览器**：启动后自动在默认浏览器中打开 Jupyter Notebook
-- **进程管理**：脚本退出时自动终止 Jupyter 进程，确保资源释放
+## ✨ 核心特性
 
-## 使用方法
+* **隔离环境**：自动创建 `.venv`，确保你的全局 Python 环境始终干净。
+* **极致加速**：默认集成清华大学 PyPI 镜像源，安装速度提升 5-10 倍。
+* **智能唤醒**：多线程监控 Jupyter 状态，捕获 Token 后自动闪电唤起浏览器。
+* **优雅交互**：内置字符级加载动画与 ANSI 色彩反馈，让命令行不再枯燥。
 
-1. 将 `auto_jupyter.py` 放在项目目录中
-2. 双击 `auto_jupyter.py` 脚本运行
-3. 脚本会自动：
-   - 检测或创建虚拟环境
-   - 安装 Jupyter Notebook（如果需要）
-   - 启动 Jupyter Notebook 并打开浏览器
+---
 
-## 工作原理
+## 🛠️ 环境要求
 
-1. **环境检测**：脚本会检查当前目录下是否存在常见的虚拟环境目录
-2. **环境创建**：如果没有找到虚拟环境，使用系统 Python 解释器创建名为 "venv" 的虚拟环境
-3. **依赖安装**：检查虚拟环境中是否安装了 Jupyter Notebook，未安装则从清华大学镜像源安装
-4. **自动重启**：创建环境或安装依赖后，脚本会自动重启以确保环境正确加载
-5. **启动服务**：重启后启动 Jupyter Notebook 并提取访问 URL
-6. **打开浏览器**：使用默认浏览器打开 Jupyter Notebook
-7. **进程管理**：注册清理函数，确保脚本退出时终止 Jupyter 进程
+* **操作系统**：Windows 10/11。
+* **Python 版本**：Python 3.8 或更高版本。
+* **权限说明**：脚本仅在当前运行目录下创建文件夹及读写文件，无需管理员权限。
 
-## 配置选项
+---
 
-脚本中的配置区域可以根据需要修改：
+## 📖 零基础使用指南
 
-- `DEFAULT_DIR`：默认工作目录（脚本所在目录）
-- `JUPYTER_TIMEOUT`：等待 Jupyter 启动的最大秒数
-- `PIP_MIRROR`：pip 镜像源地址（默认使用清华大学镜像源）
+### 第一步：获取脚本
+下载`auto_jupyter.py`，并放入你想要安装和使用 jupyter notebook 的文件夹中。
 
-## 注意事项
+### 第二步：运行脚本
 
-- 脚本会使用系统 Python 解释器创建虚拟环境
-- 安装 Jupyter Notebook 时使用清华大学镜像源，提高下载速度
-- 启动后可以关闭命令窗口，Jupyter 会在后台运行
-- 如需停止 Jupyter，请使用 Ctrl+C 或在浏览器中关闭
+1. 运行 `auto_jupyter.py` 。
 
-## 示例
+### 第三步：开始创作
+1.  脚本会自动下载并安装必要的组件（仅第一次运行需要）。
+2.  当看到 `● 环境就绪!` 时，浏览器会自动打开 Jupyter 界面。
+3.  在终端按下 `Ctrl + C` 即可安全关闭所有服务。
 
-### 首次运行（无虚拟环境）
+---
 
-1. 双击 `auto_jupyter.py`
-2. 脚本会创建虚拟环境并安装 Jupyter
-3. 自动重启后启动 Jupyter Notebook
-4. 浏览器自动打开 Jupyter 界面
+## 🔍 技术细节 (Information Density)
 
-### 后续运行（已有虚拟环境）
+| 功能模块 | 处理机制 | 解决的问题 |
+| :--- | :--- | :--- |
+| **Env Manager** | `venv` + `Scripts/bin` 探测 | 跨平台环境路径统一 |
+| **Dependency** | `pip show` 预检 + `subprocess` 静默安装 | 避免重复安装，提升二次启动速度 |
+| **Output Stream** | `bufsize=1` + `readline` 非阻塞扫描 | 彻底解决子进程死锁导致的“加载中”问题 |
+| **UX Design** | `threading.Event` + ANSI 转义序列 | 提供类似现代 Web 开发工具的交互体验 |
 
-1. 双击 `auto_jupyter.py`
-2. 脚本检测到现有虚拟环境
-3. 直接启动 Jupyter Notebook
-4. 浏览器自动打开 Jupyter 界面
+---
 
-## 命令行参数
+## ⚠️ 常见问题
 
-- **无参数**：在脚本所在目录启动 Jupyter Notebook
-- **目录路径**：在指定目录启动 Jupyter Notebook
-- **--restart**：重启模式，跳过环境检查，直接启动 Jupyter Notebook
+* **Q: 终端出现 `[0m` 这种乱码？**
+    * A: 你的终端太旧了（如旧版 CMD）。请安装 **Windows Terminal** 或使用 VS Code 的内置终端运行，即可看到完美的彩色动画。
+* **Q: 浏览器没有自动弹出？**
+    * A: 请检查脚本输出，手动点击显示的 `http://127.0.0.1...` 链接即可。
 
-## 系统要求
-
-- Python 3.x
-- 支持 Windows、macOS 和 Linux 操作系统
-
-希望这个小工具对你有帮助 :)
+希望这个小工具对你有帮助：）
