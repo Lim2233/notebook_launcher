@@ -20,8 +20,13 @@ def get_venv_python(target_dir):
 
 def run_and_manage_jupyter(python_path, target_dir):
     """启动 Jupyter 并处理生命周期"""
+    # 设置环境变量以解决Python 3.13兼容性问题
+    env = os.environ.copy()
+    env['PYTHONUTF8'] = '1'
+    env['LANG'] = 'en_US.UTF-8'
+    
     cmd = [python_path, '-m', 'notebook', '--no-browser']
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, cwd=target_dir, bufsize=1)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore', cwd=target_dir, bufsize=1, env=env)
 
     def cleanup():
         if process.poll() is None:
@@ -42,7 +47,11 @@ def run_and_manage_jupyter(python_path, target_dir):
             print(f"\n成功！正在打开浏览器: {url}")
             webbrowser.open(url)
             print("提示：按 Ctrl+C 或关闭此窗口可停止 Jupyter。")
-            input("按 Enter 键退出脚本...")
+            # 继续运行，不再等待用户输入
+            while process.poll() is None:
+                line = process.stdout.readline()
+                if line:
+                    print(line, end='')
             return
     
     process.terminate()
